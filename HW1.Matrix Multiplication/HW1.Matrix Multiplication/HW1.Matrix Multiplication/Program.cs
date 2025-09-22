@@ -6,5 +6,5 @@ using System.IO;
 using System.Threading;
 using HW1.Matrix_Multiplication;
 
-var rez = Testing.Comparison(10);
+var rez = Testing.Comparison(5);
 Console.WriteLine(rez);

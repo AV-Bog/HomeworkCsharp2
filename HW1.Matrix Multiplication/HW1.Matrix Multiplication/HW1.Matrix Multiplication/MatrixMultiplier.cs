@@ -40,9 +40,12 @@ public class MatrixMultiplier
                 end++;
             }
 
+            int localStart = start;
+            int localEnd = end;
+
             threads[i] = new Thread(() =>
             {
-                MultiplyMatrixRange(matrix1, matrix2, result, start, end);
+                MultiplyMatrixRange(matrix1, matrix2, result, localStart, localEnd);
             });
 
             threads[i].Start();

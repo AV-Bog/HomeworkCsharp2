@@ -10,8 +10,8 @@ public class Testing
 {
     static public double[][] Comparison(int N)
     {
-        var result = new double[5][];
-        int[] razmer = { 100, 1000, 10000, 100000, 1000000 };
+        var result = new double[3][];
+        int[] razmer = { 100, 1000, 10000 };
 
         for (int i = 0; i < 5; i++)
         {
@@ -23,8 +23,8 @@ public class Testing
 
     static private double[] ГенерацияТестовыхДанныхДебильныйАнгл(int n, int N)
     {
-        GenerateMatrixFile(n, n, 1, 1000, "matrixA");
-        GenerateMatrixFile(n, n, 1, 1000, "matrixB");
+        GenerateMatrixFile(n, n, 1, 10, "matrixA");
+        GenerateMatrixFile(n, n, 1, 10, "matrixB");
 
         var matrixA = ReadMatrix.ReadMatrixInFile("matrixA");
         var matrixB = ReadMatrix.ReadMatrixInFile("matrixB");
@@ -32,14 +32,18 @@ public class Testing
         var timeResults = new double[N + 1];
 
         var stopwatch = Stopwatch.StartNew();
+        Console.WriteLine($"начато не параллельное умножение матрицы размера {n}");
         MatrixMultiplier.MultiplyMatrixNonParallel(matrixA, matrixB);
+        Console.WriteLine("закончено");
         stopwatch.Stop();
         timeResults[0] = stopwatch.Elapsed.TotalMilliseconds;
 
         for (var i = 0; i < N; i++)
         {
             stopwatch.Restart();
+            Console.WriteLine($"начато параллельное умножение матрицы размера {n} запуск {N}");
             MatrixMultiplier.MultiplyMatrixParallel(matrixA, matrixB);
+            Console.WriteLine("закончено");
             stopwatch.Stop();
             timeResults[i + 1] = stopwatch.Elapsed.TotalMilliseconds;
         }
