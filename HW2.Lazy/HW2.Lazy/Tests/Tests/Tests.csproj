@@ -20,4 +20,8 @@
         <Using Include="NUnit.Framework"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="..\..\HW2.Lazy\HW2.Lazy.csproj" />
+    </ItemGroup>
+    
 </Project>
