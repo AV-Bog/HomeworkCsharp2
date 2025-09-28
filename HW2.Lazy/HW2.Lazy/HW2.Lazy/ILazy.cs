@@ -33,12 +33,12 @@ public class SimpleLazy<T> : ILazy<T>
     }
 }
 
-public class TrreadSafeLazy<T> : ILazy<T>
+public class ThreadSafeLazy<T> : ILazy<T>
 {
     private Func<T> supplier;
     private T value;
     private bool isValueCreated;
-    private readonly var lockObject = new object();
+    private readonly object lockObject = new object();
     
     public ThreadSafeLazy(Func<T> supplier)
     {

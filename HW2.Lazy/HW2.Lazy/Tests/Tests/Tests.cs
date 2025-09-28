@@ -55,6 +55,7 @@ public class Tests
         Assert.AreEqual(1, callCount);
     }
     
+    [Test]
     public void ThreadSafeLazy_Multithreaded_NoRaceConditions()
     {
         int callCount = 0;
