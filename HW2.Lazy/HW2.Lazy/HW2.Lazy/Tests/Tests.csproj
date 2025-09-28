@@ -21,7 +21,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\HW2.Lazy\HW2.Lazy.csproj" />
+        <ProjectReference Include="..HW2.Lazy.csproj" />
     </ItemGroup>
     
 </Project>
