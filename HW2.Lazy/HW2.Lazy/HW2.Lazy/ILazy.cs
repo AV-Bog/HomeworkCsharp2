@@ -11,8 +11,8 @@ public interface ILazy<T>
 
 public class SimpleLazy<T> : ILazy<T>
 {
-    private Func<T> supplier;
-    private T value;
+    private Func<T>? supplier;
+    private T? value;
     private bool isValueCreated;
 
     public SimpleLazy(Func<T> supplier)
@@ -25,7 +25,7 @@ public class SimpleLazy<T> : ILazy<T>
     {
         if (!isValueCreated)
         {
-            value = supplier();
+            value = supplier!();
             supplier = null;
             isValueCreated = true;
         }
@@ -35,8 +35,8 @@ public class SimpleLazy<T> : ILazy<T>
 
 public class ThreadSafeLazy<T> : ILazy<T>
 {
-    private Func<T> supplier;
-    private T value;
+    private Func<T>? supplier;
+    private T? value;
     private bool isValueCreated;
     private readonly object lockObject = new object();
     
@@ -54,7 +54,7 @@ public class ThreadSafeLazy<T> : ILazy<T>
             {
                 if (!isValueCreated)
                 {
-                    value = supplier();
+                    value = supplier!();
                     supplier = null;
                     isValueCreated = true;
                 }
