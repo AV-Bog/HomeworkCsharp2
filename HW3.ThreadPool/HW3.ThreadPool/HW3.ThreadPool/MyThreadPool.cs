@@ -106,6 +106,18 @@ public class MyThreadPool : IDisposable
 
     private void Shutdown()
     {
-        throw new NotImplementedException();
+        _isShutdown = true;
+        
+        _cancellationTokenSource.Cancel();
+        
+        _newTaskEvent.Set();
+        
+        foreach (Thread workerThread in _workedThreads)
+        {
+            workerThread.Join();
+        }
+        
+        _newTaskEvent.Dispose();
+        _cancellationTokenSource.Dispose();
     }
 }
