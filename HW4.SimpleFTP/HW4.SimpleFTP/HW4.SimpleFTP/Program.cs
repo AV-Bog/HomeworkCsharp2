@@ -21,20 +21,39 @@ while (true)
 // Обрабатывает запрос от клиента: читает команду и перенаправляет на соответствующий обработчик
 // </summary>
 // <param name="client">TCP-клиент для взаимодействия</param>
-static async Task ProcessClientRequest(TcpClient  client)
+static async Task ProcessClientRequest(TcpClient client)
 {
     using (client)
     using (StreamReader reader = new StreamReader(client.GetStream()))
     using (StreamWriter writer = new StreamWriter(client.GetStream()))
     {
         string content = await reader.ReadLineAsync();
-        var content2 = content.Split(' ');
+
+        if (content == null)
+        {
+            return;
+        }
+
+        var content2 = content.Split(' ', 2);
+        if (content2.Length != 2)
+        {
+            await writer.WriteLineAsync("-1");
+            return;
+        }
+
         var codComande = content2[0];
         var pathComande = content2[1];
-        if (codComande == "1")
-            await HandleDirectoryList(pathComande, writer);
-        if (codComande == "2")
-            await HandleFileGet(pathComande, writer, client.GetStream());
+
+        switch (codComande)
+        {
+            case "1": await HandleDirectoryList(pathComande, writer);
+                break;
+            case "2": await HandleFileGet(pathComande, writer, client.GetStream());
+                break;
+            default:
+                await writer.WriteLineAsync("-1");
+                break;
+        }
     }
 }
 
@@ -51,22 +70,26 @@ static async Task HandleDirectoryList(string pathComande, StreamWriter writer)
         await writer.WriteLineAsync("-1");
         return;
     }
-        
+
     try
     {
         var allEntries = Directory.GetFileSystemEntries(pathComande);
-        var size = allEntries.Count();
 
         StringBuilder ansver = new StringBuilder();
-        ansver.Append(size);
+        ansver.Append(allEntries.Count());
 
         foreach (var entry in allEntries)
         {
-            bool isDir = Directory.Exists(entry); //но там файл/дир/ничего поэтому так мб нельзя
+            bool isDir = Directory.Exists(entry);
             var name = Path.GetFileName(entry);
-            ansver.Append($" {name} {isDir}\n");
+
+            ansver.Append($" {name} {(isDir ? "true" : "false")}");
         }
+
+        ansver.AppendLine();
+
         await writer.WriteAsync(ansver.ToString());
+        await writer.FlushAsync();
     }
     catch (Exception ex)
     {
@@ -93,10 +116,10 @@ static async Task HandleFileGet(string pathComande, StreamWriter writer, Network
     {
         var fileInfo = new FileInfo(pathComande);
         var size = fileInfo.Length;
-            
+
         await writer.WriteLineAsync($"{size}");
         await writer.FlushAsync();
-            
+
         using (FileStream fileStream = File.OpenRead(pathComande))
         {
             await fileStream.CopyToAsync(stream);
@@ -104,6 +127,13 @@ static async Task HandleFileGet(string pathComande, StreamWriter writer, Network
     }
     catch (Exception ex)
     {
-        await writer.WriteLineAsync("-1");
+        try
+        {
+            await writer.WriteLineAsync("-1");
+        }
+        catch
+        {
+            // ignored
+        }
     }
 }
