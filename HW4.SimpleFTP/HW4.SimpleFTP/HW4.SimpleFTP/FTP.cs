@@ -3,6 +3,7 @@
 // </copyright>
 
 using System.Net.Sockets;
+using System.Text;
 
 namespace HW4.SimpleFTP;
 
@@ -22,20 +23,40 @@ public class FTP
                 await ОбработкаЗапросаДля1(pathComande, writer);
             if (codComande == "2")
                 await ОбработкаЗапросаДля2(pathComande,  writer);
-            else
-            {
-                //отправить клиенту -1 и пусть гуляет
-            }
         }
-        
     }
 
-    private static async void ОбработкаЗапросаДля1(string pathComande, StreamWriter writer)
+    private static async Task ОбработкаЗапросаДля1(string pathComande, StreamWriter writer) //List
     {
-        
+        if (!Directory.Exists(pathComande))
+        {
+            await writer.WriteLineAsync("-1"); // Директория не существует
+            return;
+        }
+         //size (<name: String> <isDir: Boolean>)*\n
+         try
+         {
+             var allEntries = Directory.GetFileSystemEntries(pathComande);
+             var size = allEntries.Count();
+
+             StringBuilder ansver = new StringBuilder();
+             ansver.Append(size);
+
+             foreach (var entry in allEntries)
+             {
+                 bool isDir = Directory.Exists(entry); //но там файл/дир/ничего поэтому так мб нельзя
+                 var name = Path.GetFileName(entry);
+                 ansver.AppendFormat(" (<name: {1}> <isDir: {2})>\n", name, isDir);
+             }
+             await writer.WriteAsync(ansver.ToString());
+         }
+         catch (Exception ex)
+         {
+             await writer.WriteLineAsync("-1");
+         }
     }
     
-    private static async void ОбработкаЗапросаДля2(string pathComande, StreamWriter writer)
+    private static async void ОбработкаЗапросаДля2(string pathComande, StreamWriter writer) //Get
     {
         
     }
