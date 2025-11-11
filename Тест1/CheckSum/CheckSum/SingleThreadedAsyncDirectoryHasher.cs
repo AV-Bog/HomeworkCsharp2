@@ -13,23 +13,39 @@ public class SingleThreadedAsyncDirectoryHasher : IAsyncDirectoryHasher
     /// </summary>
     /// <param name="filePath"></param>
     /// <returns></returns>
-    private async Task<byte[]> ComputeFileHashAsync(string filePath)
+    private async Task<byte[]> ComputeFileHashAsync(string filePath, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fileName = Path.GetFileName(filePath);
         byte[] nameBytes = Encoding.UTF8.GetBytes(fileName);
 
         byte[] contentBytes;
-        using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous))
+        using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096,
+                   FileOptions.Asynchronous))
         {
             contentBytes = new byte[fileStream.Length];
-            await fileStream.ReadAsync(contentBytes, 0, (int)fileStream.Length);
+
+            int bytesRead = await fileStream.ReadAsync(contentBytes, 0, (int)fileStream.Length, cancellationToken);
+
+            if (bytesRead != fileStream.Length)
+            {
+                throw new IOException($"Не удалось прочитать весь файл: {filePath}");
+            }
         }
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         byte[] combinedBytes = new byte[nameBytes.Length + contentBytes.Length];
         Buffer.BlockCopy(nameBytes, 0, combinedBytes, 0, nameBytes.Length);
         Buffer.BlockCopy(contentBytes, 0, combinedBytes, nameBytes.Length, contentBytes.Length);
 
-        return await Task.Run(() => HashUtils.ComputeMD5(combinedBytes));
+        return await Task.Run(
+            () =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return HashUtils.ComputeMD5(combinedBytes);
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -37,8 +53,10 @@ public class SingleThreadedAsyncDirectoryHasher : IAsyncDirectoryHasher
     /// </summary>
     /// <param name="directoryPath"></param>
     /// <returns></returns>
-    public async Task<byte[]> ComputeDirectoryHashAsync(string directoryPath)
+    public async Task<byte[]> ComputeDirectoryHashAsync(string directoryPath, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var directoryName = Path.GetFileName(directoryPath.TrimEnd(Path.DirectorySeparatorChar));
 
         var files = Directory.GetFiles(directoryPath)
@@ -53,21 +71,27 @@ public class SingleThreadedAsyncDirectoryHasher : IAsyncDirectoryHasher
 
         foreach (var subdirectory in subdirectories)
         {
-            var subdirectoryHash = await ComputeDirectoryHashAsync(subdirectory);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var subdirectoryHash = await this.ComputeDirectoryHashAsync(subdirectory, cancellationToken);
             allHashes.Add(subdirectoryHash);
         }
 
         foreach (var file in files)
         {
-            var fileHash = await ComputeFileHashAsync(file);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var fileHash = await ComputeFileHashAsync(file, cancellationToken);
             allHashes.Add(fileHash);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         return ComputeFinalDirectoryHash(directoryName, allHashes);
     }
-    
+
     /// <summary>
-    /// очев
+    /// очев.
     /// </summary>
     /// <param name="directoryName"></param>
     /// <param name="contentHashes"></param>
