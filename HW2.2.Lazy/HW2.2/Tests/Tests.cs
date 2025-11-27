@@ -2,11 +2,7 @@
 // under MIT License
 // </copyright>
 
-using System;
-using System.Threading;
 using HW2.Lazy;
-using NUnit.Framework;
-
 namespace Tests;
 
 [TestFixture]
@@ -14,14 +10,26 @@ public class Tests
 {
     private static readonly object[] LazyImplementations =
     {
-        new object[] { new Func<Func<int>, ILazy<int>>(supplier => new SimpleLazy<int>(supplier)) },
-        new object[] { new Func<Func<int>, ILazy<int>>(supplier => new ThreadSafeLazy<int>(supplier)) }
+        new Func<Func<int>, ILazy<int>>(supplier => new SimpleLazy<int>(supplier)),
+        new Func<Func<int>, ILazy<int>>(supplier => new ThreadSafeLazy<int>(supplier))
     };
 
     private static readonly object[] StringLazyImplementations =
     {
-        new object[] { new Func<Func<string>, ILazy<string>>(supplier => new SimpleLazy<string>(supplier)) },
-        new object[] { new Func<Func<string>, ILazy<string>>(supplier => new ThreadSafeLazy<string>(supplier)) }
+        new Func<Func<string>, ILazy<string>>(supplier => new SimpleLazy<string>(supplier)),
+        new Func<Func<string>, ILazy<string>>(supplier => new ThreadSafeLazy<string>(supplier))
+    };
+    
+    private static readonly object[] NullableIntLazyImplementations =
+    {
+        new Func<Func<int?>, ILazy<int?>>(supplier => new SimpleLazy<int?>(supplier)),
+        new Func<Func<int?>, ILazy<int?>>(supplier => new ThreadSafeLazy<int?>(supplier))
+    };
+    
+    private static readonly object[] ObjectLazyImplementations =
+    {
+        new Func<Func<object>, ILazy<object>>(supplier => new SimpleLazy<object>(supplier)),
+        new Func<Func<object>, ILazy<object>>(supplier => new ThreadSafeLazy<object>(supplier))
     };
     
     [Test]
@@ -61,7 +69,7 @@ public class Tests
     }
     
     [Test]
-    [TestCaseSource(nameof(LazyImplementations))]
+    [TestCaseSource(nameof(NullableIntLazyImplementations))]
     public void Lazy_Get_WithNullValue_WorksCorrectly(Func<Func<int?>, ILazy<int?>> lazyFactory)
     {
         int callCount = 0;
@@ -80,7 +88,7 @@ public class Tests
     }
     
     [Test]
-    [TestCaseSource(nameof(LazyImplementations))]
+    [TestCaseSource(nameof(ObjectLazyImplementations))]
     public void Lazy_Get_WithComplexObject_WorksCorrectly(Func<Func<object>, ILazy<object>> lazyFactory)
     {
         int callCount = 0;
