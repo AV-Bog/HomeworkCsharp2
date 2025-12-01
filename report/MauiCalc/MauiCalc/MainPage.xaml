@@ -1,12 +1,18 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:MauiCalc.ViewModels"
              x:Class="MauiCalc.MainPage"
              Title="MauiCalc">
 
+    <ContentPage.BindingContext>
+        <vm:MainViewModel />
+    </ContentPage.BindingContext>
+
     <VerticalStackLayout Padding="20" Spacing="20">
-        <Label Text="Привет, Android!" FontSize="24" HorizontalOptions="Center" />
-        <Button Text="Нажми меня" Clicked="OnButtonClicked" />
-        <Label x:Name="ResultLabel" Text="Результат: —" />
+        <Label Text="Привет, MVVM!" FontSize="24" HorizontalOptions="Center" />
+        <Button Text="Нажми меня" Command="{Binding OnButtonClickCommand}" />
+        <Label Text="{Binding Result}" />
+        <Label Text="{Binding ClickCount, StringFormat='Нажатий: {0}'}" />
     </VerticalStackLayout>
 </ContentPage>

@@ -5,10 +5,10 @@ public partial class MainPage : ContentPage
     public MainPage()
     {
         InitializeComponent();
-    }
-
-    private void OnButtonClicked(object sender, EventArgs e)
-    {
-        ResultLabel.Text = "Результат: Работает!";
+        
+        if (BindingContext == null)
+        {
+            BindingContext = new ViewModels.MainViewModel();
+        }
     }
 }

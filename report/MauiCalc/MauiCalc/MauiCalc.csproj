@@ -62,6 +62,14 @@
     <ItemGroup>
         <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)"/>
         <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.8"/>
+        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2">
+            <IncludeAssets>compile; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>none</PrivateAssets>
+        </PackageReference>
     </ItemGroup>
 
+    <ItemGroup>
+        <Using Include="CommunityToolkit.Mvvm.ComponentModel" />
+        <Using Include="CommunityToolkit.Mvvm.Input" />
+    </ItemGroup>
 </Project>
