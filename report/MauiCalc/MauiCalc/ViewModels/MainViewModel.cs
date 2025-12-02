@@ -13,7 +13,7 @@ public class MainViewModel : INotifyPropertyChanged
     public string Result
     {
         get => _result;
-        set { _result = value; OnPropertyChanged(); }
+        set { _result = value; OnPropertyChanged(); } //При изменении значения (set) вызывается OnPropertyChanged() → UI обновляется.
     }
 
     public int ClickCount
