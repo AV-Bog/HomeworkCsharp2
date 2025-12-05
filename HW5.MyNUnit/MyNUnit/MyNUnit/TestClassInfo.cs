@@ -11,5 +11,5 @@ public class TestClassInfo
     public List<MethodInfo> AfterClassMethods;
     public List<MethodInfo> BeforeMethods;
     public List<MethodInfo> AfterMethods;
-    public static List<TestMethodInfo> TestMethods;
+    public List<TestMethodInfo> TestMethods;
 }

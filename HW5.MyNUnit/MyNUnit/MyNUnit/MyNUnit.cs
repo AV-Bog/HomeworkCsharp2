@@ -2,6 +2,7 @@
 // under MIT License
 // </copyright>
 
+using System.Reflection;
 using static System.Reflection.Assembly;
 
 public class MyNUnit
@@ -10,6 +11,8 @@ public class MyNUnit
     {
         var assembly = LoadFrom(filePath);
         var allTypes = assembly.GetTypes();
+        List<TestClassInfo> allTestClasses = new List<TestClassInfo>();
+
         foreach (var type in allTypes)
         {
             var classInfo = new TestClassInfo();
@@ -32,7 +35,7 @@ public class MyNUnit
                 {
                     classInfo.BeforeClassMethods.Add(method);
                 }
-                
+
                 TestAttribute testAttribute = method
                     .GetCustomAttributes(typeof(TestAttribute), false)
                     .FirstOrDefault() as TestAttribute;
@@ -41,19 +44,82 @@ public class MyNUnit
                     Type expectedException = testAttribute.Expected;
                     string ignoreReason = testAttribute.Ignore;
 
-                    TestMethodInfo testMethodInfo = new TestMethodInfo
+                    var testMethodInfo = new TestMethodInfo
                     {
                         Method = method,
                         Exeption = expectedException,
-                        Ignore = ignoreReason
+                        Ignore = ignoreReason,
                     };
 
-                    TestClassInfo.TestMethods.Add(testMethodInfo);
+                    classInfo.TestMethods.Add(testMethodInfo);
                 }
-                
             }
-            
+
+            allTestClasses.Add(classInfo);
+        }
+
+        foreach (var classInfo in allTestClasses)
+        {
+            RunTestForClass(classInfo);
         }
     }
-    
+
+    private static void RunTestForClass(TestClassInfo classInfo)
+    {
+        foreach (var method in classInfo.BeforeClassMethods)
+        {
+            method.Invoke(null, null);
+        }
+
+        var classInstance = Activator.CreateInstance(classInfo.ClassType);
+        foreach (var test in classInfo.TestMethods)
+        {
+            if (test.Ignore != null)
+            {
+                Console.WriteLine($"[IGNORED] {test}");
+                continue;
+            }
+
+            foreach (var methodB in classInfo.BeforeMethods)
+            {
+                methodB.Invoke(classInstance, null);
+            }
+
+            try
+            {
+                test.Method.Invoke(classInstance, null);
+                if (test.Exeption != null)
+                {
+                    Console.WriteLine($"[FAIL] {test} - исключения не было, но ожидалось {test.Exeption}");
+                }
+                else
+                {
+                    Console.WriteLine($"[SUCCESS] {test} - исключения не было и не ожидалось");
+                }
+            }
+            catch (Exception ex)
+            {
+                if (!Equals(ex.GetType(), test.Exeption))
+                {
+                    Console.WriteLine($"[FAIL] {test} - ожидаемое исключение {test.Exeption} не совпало с произошедшим {ex.GetType()}");
+                }
+                else
+                {
+                    Console.WriteLine($"[SUCCESS] {test} - ожидаемое исключение совпало с произошедшим");
+                }
+            }
+            finally
+            {
+                foreach (var methodA in classInfo.AfterMethods)
+                {
+                    methodA.Invoke(classInstance, null);
+                }
+            }
+        }
+
+        foreach (var method in classInfo.AfterClassMethods)
+        {
+            method.Invoke(null, null);
+        }
+    }
 }
