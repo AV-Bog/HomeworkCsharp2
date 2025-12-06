@@ -3,7 +3,4 @@
 // </copyright>
 
 [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-public class After: Attribute
-{
-    
-}
+public class After: Attribute;

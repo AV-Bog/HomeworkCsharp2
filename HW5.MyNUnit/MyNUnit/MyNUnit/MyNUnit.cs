@@ -2,6 +2,7 @@
 // under MIT License
 // </copyright>
 
+using System.Diagnostics;
 using System.Reflection;
 using static System.Reflection.Assembly;
 
@@ -16,7 +17,9 @@ public class MyNUnit
         foreach (var type in allTypes)
         {
             var classInfo = new TestClassInfo();
+            classInfo.ClassType = type;
             var methodInfo = type.GetMethods();
+
             foreach (var method in methodInfo)
             {
                 if (method.GetCustomAttributes(typeof(After), false).Length > 0)
@@ -29,11 +32,31 @@ public class MyNUnit
                 }
                 else if (method.GetCustomAttributes(typeof(AfterClass), false).Length > 0)
                 {
-                    classInfo.AfterClassMethods.Add(method);
+                    if (method.IsStatic)
+                    {
+                        classInfo.AfterClassMethods.Add(method);
+                    }
+                    else
+                    {
+                        lock (ConsoleLock)
+                        {
+                            Console.WriteLine($"[ERROR] Метод {method.Name} в классе {type.Name} помечен [AfterClass], но не является статическим");
+                        }
+                    }
                 }
                 else if (method.GetCustomAttributes(typeof(BeforeClass), false).Length > 0)
                 {
-                    classInfo.BeforeClassMethods.Add(method);
+                    if (method.IsStatic)
+                    {
+                        classInfo.BeforeClassMethods.Add(method);
+                    }
+                    else
+                    {
+                        lock (ConsoleLock)
+                        {
+                            Console.WriteLine($"[ERROR] Метод {method.Name} в классе {type.Name} помечен [BeforeClass], но не является статическим");
+                        }
+                    }
                 }
 
                 TestAttribute testAttribute = method
@@ -55,29 +78,44 @@ public class MyNUnit
                 }
             }
 
-            allTestClasses.Add(classInfo);
+            if (classInfo.TestMethods.Count > 0)
+            {
+                allTestClasses.Add(classInfo);
+            }
         }
 
         foreach (var classInfo in allTestClasses)
         {
+            foreach (var method in classInfo.BeforeClassMethods)
+            {
+                method.Invoke(null, null);
+            }
+
             RunTestForClass(classInfo);
+
+            foreach (var method in classInfo.AfterClassMethods)
+            {
+                method.Invoke(null, null);
+            }
         }
     }
 
+    private static readonly object ConsoleLock = new object();
+
     private static void RunTestForClass(TestClassInfo classInfo)
     {
-        foreach (var method in classInfo.BeforeClassMethods)
+        Parallel.ForEach(classInfo.TestMethods, test =>
         {
-            method.Invoke(null, null);
-        }
-
-        var classInstance = Activator.CreateInstance(classInfo.ClassType);
-        foreach (var test in classInfo.TestMethods)
-        {
+            var classInstance = Activator.CreateInstance(classInfo.ClassType);
             if (test.Ignore != null)
             {
-                Console.WriteLine($"[IGNORED] {test}");
-                continue;
+                lock (ConsoleLock)
+                {
+                    Console.WriteLine(
+                        $"[IGNORED] {test.Method.DeclaringType?.Name}.{test.Method.Name}. Причина игнорирования теста - {test.Ignore}");
+                }
+
+                return;
             }
 
             foreach (var methodB in classInfo.BeforeMethods)
@@ -85,27 +123,57 @@ public class MyNUnit
                 methodB.Invoke(classInstance, null);
             }
 
+            var timer = new Stopwatch();
+            timer.Start();
             try
             {
                 test.Method.Invoke(classInstance, null);
+                timer.Stop();
+                var time = timer.Elapsed;
+
                 if (test.Exeption != null)
                 {
-                    Console.WriteLine($"[FAIL] {test} - исключения не было, но ожидалось {test.Exeption}");
+                    lock (ConsoleLock)
+                    {
+                        Console.WriteLine(
+                            $"[FAIL] {test.Method.DeclaringType?.Name}.{test.Method.Name} - исключения не было, но ожидалось {test.Exeption.Name}. Время выполнения - {time.ToString()} мс");
+                    }
                 }
                 else
                 {
-                    Console.WriteLine($"[SUCCESS] {test} - исключения не было и не ожидалось");
+                    lock (ConsoleLock)
+                    {
+                        Console.WriteLine(
+                            $"[SUCCESS] {test.Method.DeclaringType?.Name}.{test.Method.Name} - тест пройден. Время выполнения - {time.ToString()} мс");
+                    }
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is TargetInvocationException || ex.InnerException != null)
             {
-                if (!Equals(ex.GetType(), test.Exeption))
+                timer.Stop();
+                var time = timer.Elapsed;
+                var realException = ex.InnerException ?? ex;
+
+                if (test.Exeption == null)
                 {
-                    Console.WriteLine($"[FAIL] {test} - ожидаемое исключение {test.Exeption} не совпало с произошедшим {ex.GetType()}");
+                    lock (ConsoleLock)
+                    {
+                        Console.WriteLine($"[FAIL] {test.Method.DeclaringType?.Name}.{test.Method.Name} - неожиданное исключение: {realException.GetType().Name}: {realException.Message}. Время: {time.TotalMilliseconds} мс");
+                    }
+                }
+                else if (realException.GetType() != test.Exeption && !realException.GetType().IsSubclassOf(test.Exeption))
+                {
+                    lock (ConsoleLock)
+                    {
+                        Console.WriteLine($"[FAIL] {test.Method.DeclaringType?.Name}.{test.Method.Name} - ожидалось {test.Exeption.Name}, но было {realException.GetType().Name}. Время: {time.TotalMilliseconds} мс");
+                    }
                 }
                 else
                 {
-                    Console.WriteLine($"[SUCCESS] {test} - ожидаемое исключение совпало с произошедшим");
+                    lock (ConsoleLock)
+                    {
+                        Console.WriteLine($"[SUCCESS] {test.Method.DeclaringType?.Name}.{test.Method.Name} - ожидаемое исключение {realException.GetType().Name} получено. Время: {time.TotalMilliseconds} мс");
+                    }
                 }
             }
             finally
@@ -115,11 +183,6 @@ public class MyNUnit
                     methodA.Invoke(classInstance, null);
                 }
             }
-        }
-
-        foreach (var method in classInfo.AfterClassMethods)
-        {
-            method.Invoke(null, null);
-        }
+        });
     }
 }

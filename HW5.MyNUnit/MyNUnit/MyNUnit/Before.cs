@@ -3,7 +3,4 @@
 // </copyright>
 
 [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-public class Before: Attribute
-{
-    
-}
+public class Before: Attribute;
