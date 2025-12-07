@@ -6,10 +6,15 @@ using System.Reflection;
 
 public class TestClassInfo
 {
-    public Type ClassType;
-    public List<MethodInfo> BeforeClassMethods;
-    public List<MethodInfo> AfterClassMethods;
-    public List<MethodInfo> BeforeMethods;
-    public List<MethodInfo> AfterMethods;
-    public List<TestMethodInfo> TestMethods;
+    public Type ClassType = null!;
+
+    public List<MethodInfo> BeforeClassMethods { get; set; } = new();
+
+    public List<MethodInfo> AfterClassMethods { get; set; } = new();
+
+    public List<MethodInfo> BeforeMethods { get; set; } = new();
+
+    public List<MethodInfo> AfterMethods { get; set; } = new();
+
+    public List<TestMethodInfo> TestMethods { get; set; } = new();
 }

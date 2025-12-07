@@ -3,7 +3,7 @@
 // </copyright>
 
 [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-public class TestAttribute: Attribute
+public class TestAttribute : Attribute
 {
     public Type Expected { get; set; }
 
