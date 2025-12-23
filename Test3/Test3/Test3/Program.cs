@@ -2,12 +2,16 @@
 using System.Net.Sockets;
 using System.Text;
 
-Console.WriteLine("Usage:");
-Console.WriteLine("  Server mode: NetworkChat.exe <port>");
-Console.WriteLine("  Client mode: NetworkChat.exe <ip> <port>");
-Console.WriteLine("Example:");
-Console.WriteLine("  Server: NetworkChat.exe 8888");
-Console.WriteLine("  Client: NetworkChat.exe 127.0.0.1 8888");
+if (args.Length == 0)
+{
+    Console.WriteLine("Usage:");
+    Console.WriteLine("  Server mode: NetworkChat.exe <port>");
+    Console.WriteLine("  Client mode: NetworkChat.exe <ip> <port>");
+    Console.WriteLine("Example:");
+    Console.WriteLine("  Server: NetworkChat.exe 8888");
+    Console.WriteLine("  Client: NetworkChat.exe 127.0.0.1 8888");
+    return;
+}
 
 try
 {
@@ -39,11 +43,9 @@ static async Task RunAsServer(int port)
 
     try
     {
-        using (var client = await listener.AcceptTcpClientAsync())
-        {
-            Console.WriteLine("Client connected!");
-            await HandleConnection(client, "Server", "Client");
-        }
+        using var client = await listener.AcceptTcpClientAsync();
+        Console.WriteLine("Client connected!");
+        await HandleConnection(client, "Server", "Client");
     }
     finally
     {
@@ -56,12 +58,10 @@ static async Task RunAsClient(string ip, int port)
 {
     Console.WriteLine($"Connecting to {ip}:{port}...");
             
-    using (var client = new TcpClient())
-    {
-        await client.ConnectAsync(ip, port);
-        Console.WriteLine("Connected to server!");
-        await HandleConnection(client, "Client", "Server");
-    }
+    using var client = new TcpClient();
+    await client.ConnectAsync(ip, port);
+    Console.WriteLine("Connected to server!");
+    await HandleConnection(client, "Client", "Server");
             
     Console.WriteLine("Disconnected.");
 }
@@ -79,10 +79,7 @@ static async Task HandleConnection(TcpClient client, string localName, string re
             while (client.Connected)
             {
                 var message = await reader.ReadLineAsync();
-                if (message == null)
-                {
-                    break;
-                }
+                if (message is null) break;
                         
                 if (message.Equals("exit", StringComparison.OrdinalIgnoreCase))
                 {
@@ -103,10 +100,7 @@ static async Task HandleConnection(TcpClient client, string localName, string re
         while (client.Connected && !readTask.IsCompleted)
         {
             var input = Console.ReadLine();
-            if (string.IsNullOrEmpty(input))
-            {
-                continue;
-            }
+            if (string.IsNullOrEmpty(input)) continue;
                     
             if (input.Equals("exit", StringComparison.OrdinalIgnoreCase))
             {
