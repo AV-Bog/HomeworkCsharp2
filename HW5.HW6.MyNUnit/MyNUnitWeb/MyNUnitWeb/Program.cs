@@ -1,3 +1,4 @@
+using DefaultNamespace;
 using MyNUnitWeb.Components;
 
 var builder = WebApplication.CreateBuilder(args);

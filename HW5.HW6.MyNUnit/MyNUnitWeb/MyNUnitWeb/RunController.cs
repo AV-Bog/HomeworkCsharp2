@@ -2,6 +2,8 @@
 // under MIT License
 // </copyright>
 
+using Microsoft.AspNetCore.Mvc;
+
 namespace DefaultNamespace;
 
 [ApiController]

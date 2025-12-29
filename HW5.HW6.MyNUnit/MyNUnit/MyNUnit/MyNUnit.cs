@@ -4,13 +4,14 @@
 
 using System.Diagnostics;
 using System.Reflection;
+using DefaultNamespace;
 using static System.Reflection.Assembly;
 
 public class MyNUnit
 {
     public static TestRunResult Testing(string filePath)
     {
-        var result = new TestRunResult { AssemblyPath = filePath}
+        var result = new TestRunResult { AssemblyPath = filePath };
         var assembly = LoadFrom(filePath);
         var allTypes = assembly.GetTypes();
         List<TestClassInfo> allTestClasses = new();
@@ -79,6 +80,8 @@ public class MyNUnit
 
         foreach (var classInfo in allTestClasses)
         {
+            var classResult = new TestClassResult { ClassName = classInfo.ClassType.Name };
+            
             foreach (var method in classInfo.BeforeClassMethods)
             {
                 method.Invoke(null, null);

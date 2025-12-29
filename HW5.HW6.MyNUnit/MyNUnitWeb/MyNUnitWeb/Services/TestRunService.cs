@@ -3,9 +3,6 @@
 // </copyright>
 
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using MyNUnit;
 
 namespace DefaultNamespace;
 
@@ -25,7 +22,7 @@ public class TestRunService
 
         foreach (var path in assemblyPaths)
         {
-            var result = MyNUnit.MyNUnit.Testing(path);
+            var result = MyNUnit.Testing(path);
             record.Assemblies.Add(new AssemblyRun
             {
                 Path = path,
