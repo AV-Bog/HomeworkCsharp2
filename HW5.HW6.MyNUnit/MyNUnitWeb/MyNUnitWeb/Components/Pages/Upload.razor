@@ -1,0 +1,95 @@
+﻿@page "/upload"
+@attribute [StreamRendering]
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<PageTitle>Upload Assemblies</PageTitle>
+
+<h2>Upload Test Assemblies</h2>
+
+<InputFile OnChange="@OnInputFileChange" multiple />
+
+@if (selectedFiles.Count > 0)
+{
+    <ul>
+        @foreach (var file in selectedFiles)
+        {
+            <li>@file.Name (@file.Size bytes)</li>
+        }
+    </ul>
+
+    <button class="btn btn-primary" @onclick="StartTesting" disabled="@isUploading">
+        @(isUploading ? "Uploading..." : "Start Testing")
+    </button>
+}
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert alert-info mt-3">@message</div>
+}
+
+@if (runId != Guid.Empty)
+{
+    <div class="alert alert-success mt-3">
+        Testing completed! <a href="/runs/@runId">View results</a>
+    </div>
+}
+
+@code {
+    private List<IBrowserFile> selectedFiles = new();
+    private bool isUploading = false;
+    private string message = "";
+    private Guid runId = Guid.Empty;
+
+    private async Task OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        selectedFiles = e.GetMultipleFiles().ToList();
+        runId = Guid.Empty;
+        message = "";
+    }
+
+    private async Task StartTesting()
+    {
+        if (selectedFiles.Count == 0) return;
+
+        isUploading = true;
+        message = "Uploading files...";
+
+        try
+        {
+            var formData = new MultipartFormDataContent();
+
+            foreach (var file in selectedFiles)
+            {
+                var stream = file.OpenReadStream(10 * 1024 * 1024); // 10 MB limit
+                var fileContent = new StreamContent(stream);
+                formData.Add(fileContent, "files", file.Name);
+            }
+
+            var response = await Http.PostAsync("api/upload", formData);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+                var idStr = json?["runId"];
+                if (Guid.TryParse(idStr, out var id))
+                {
+                    runId = id;
+                    message = "Testing started successfully!";
+                }
+            }
+            else
+            {
+                message = "Upload failed: " + response.ReasonPhrase;
+            }
+        }
+        catch (Exception ex)
+        {
+            message = "Error: " + ex.Message;
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+}

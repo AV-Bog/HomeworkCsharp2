@@ -5,8 +5,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents()
-    .AddSingleton<TestRunService>();
+    .AddInteractiveServerComponents();
+
+builder.Services.AddSingleton<TestRunService>();
+builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
