@@ -14,61 +14,39 @@ public class MyNUnit
         var result = new TestRunResult { AssemblyPath = filePath };
         var assembly = LoadFrom(filePath);
         var allTypes = assembly.GetTypes();
-        List<TestClassInfo> allTestClasses = new();
+        var allTestClasses = new List<TestClassInfo>();
 
         foreach (var type in allTypes)
         {
-            var classInfo = new TestClassInfo();
-            classInfo.ClassType = type;
-            var methodInfo = type.GetMethods();
-
-            foreach (var method in methodInfo)
+            var classInfo = new TestClassInfo { ClassType = type };
+            var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
+            
+            foreach (var method in methods)
             {
-                if (method.GetCustomAttributes(typeof(After), false).Length > 0)
+                if (method.GetCustomAttribute<After>() != null)
                 {
                     classInfo.AfterMethods.Add(method);
                 }
-                else if (method.GetCustomAttributes(typeof(Before), false).Length > 0)
+                else if (method.GetCustomAttribute<Before>() != null)
                 {
                     classInfo.BeforeMethods.Add(method);
                 }
-                else if (method.GetCustomAttributes(typeof(AfterClass), false).Length > 0)
+                else if (method.GetCustomAttribute<AfterClass>() != null && method.IsStatic)
                 {
-                    if (method.IsStatic)
-                    {
-                        classInfo.AfterClassMethods.Add(method);
-                    }
-                    else
-                    {
-                    }
+                    classInfo.AfterClassMethods.Add(method);
                 }
-                else if (method.GetCustomAttributes(typeof(BeforeClass), false).Length > 0)
+                else if (method.GetCustomAttribute<BeforeClass>() != null && method.IsStatic)
                 {
-                    if (method.IsStatic)
-                    {
-                        classInfo.BeforeClassMethods.Add(method);
-                    }
-                    else
-                    {
-                    }
+                    classInfo.BeforeClassMethods.Add(method);
                 }
-
-                TestAttribute testAttribute = method
-                    .GetCustomAttributes(typeof(TestAttribute), false)
-                    .FirstOrDefault() as TestAttribute;
-                if (testAttribute != null)
+                else if (method.GetCustomAttribute<TestAttribute>() != null)
                 {
-                    Type expectedException = testAttribute.Expected;
-                    string ignoreReason = testAttribute.Ignore;
-
-                    var testMethodInfo = new TestMethodInfo
+                    classInfo.TestMethods.Add(new TestMethodInfo
                     {
                         Method = method,
-                        Exeption = expectedException,
-                        Ignore = ignoreReason,
-                    };
-
-                    classInfo.TestMethods.Add(testMethodInfo);
+                        Exeption = method.GetCustomAttribute<TestAttribute>()?.Expected,
+                        Ignore = method.GetCustomAttribute<TestAttribute>()?.Ignore ?? ""
+                    });
                 }
             }
 
@@ -97,6 +75,7 @@ public class MyNUnit
             {
                 method.Invoke(null, null);
             }
+            result.Classes.Add(classResult);
         }
         
         return result;
