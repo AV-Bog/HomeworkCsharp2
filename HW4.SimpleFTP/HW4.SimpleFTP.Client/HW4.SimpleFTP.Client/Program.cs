@@ -3,97 +3,44 @@
 // </copyright>
 
 using System.Net.Sockets;
+using SimpleFtpClient;
 
-// <summary>
-// Главная точка входа клиентского приложения: предоставляет интерфейс для взаимодействия с сервером
-// </summary>
-while (true)
+if (args.Length < 2)
 {
-    Console.WriteLine("Выберите команду:");
-    Console.WriteLine("1 - List (получить список файлов)");
-    Console.WriteLine("2 - Get (скачать файл)");
-    Console.WriteLine("3 - Выход");
-    Console.Write("Введите номер команды: ");
-
-    var choice = Console.ReadLine();
-
-    switch (choice)
-    {
-        case "1":
-            await HandleListCommand();
-            break;
-        case "2":
-            await HandleGetCommand();
-            break;
-        case "3":
-            return;
-        default:
-            Console.WriteLine("Неизвестная команда");
-            break;
-    }
-
-    Console.WriteLine();
+    Console.WriteLine("Usage:");
+    Console.WriteLine("  list <path>                     – List directory contents");
+    Console.WriteLine("  get <remotePath> <localPath>    – Download file");
+    return;
 }
 
-// <summary>
-// Обрабатывает команду List: формирует запрос к серверу, получает и отображает список файлов и директорий
-// </summary>
-static async Task HandleListCommand()
+var command = args[0].ToLowerInvariant();
+try
 {
-    try
+    switch (command)
     {
-        Console.Write("Введите путь к директории: ");
-        var path = Console.ReadLine();
+        case "list":
+            if (args.Length != 2)
+                throw new ArgumentException("Expected exactly one argument for 'list'");
+            await FtpClient.ListAsync(args[1]);
+            break;
 
-        using TcpClient client = new TcpClient();
-        await client.ConnectAsync("localhost", 8888);
+        case "get":
+            if (args.Length != 3)
+                throw new ArgumentException("Expected two arguments for 'get': remotePath localPath");
+            await FtpClient.GetAsync(args[1], args[2]);
+            break;
 
-        using NetworkStream stream = client.GetStream();
-        using StreamReader reader = new StreamReader(stream);
-        using StreamWriter writer = new StreamWriter(stream);
-
-        var request = $"1 {path}";
-        await writer.WriteLineAsync(request);
-        await writer.FlushAsync();
-
-        Console.WriteLine($"Отправлен запрос: {request}");
-
-        var response = await reader.ReadLineAsync();
-        Console.WriteLine($"Получен ответ: {response}");
-
-        if (response == null)
-        {
-            Console.WriteLine("Пустой ответ от сервера");
-            return;
-        }
-
-        var parts = response.Split(' ');
-
-        if (parts.Length == 0)
-        {
-            Console.WriteLine("Ошибка неизвестного характера");
-            return;
-        }
-
-        if (!int.TryParse(parts[0], out int size))
-        {
-            Console.WriteLine("Некорректный формат размера");
-            return;
-        }
-
-        if (size == -1)
-        {
-            Console.WriteLine("Директория не существует");
-            return;
-        }
-
-        if (parts.Length != size * 2 + 1)
-        {
-            Console.WriteLine("Несоответствие количества элементов в ответе");
-            return;
-        }
-
-        Console.WriteLine($"Найдено {size} элементов:");
+        default:
+            Console.WriteLine($"Unknown command: {command}");
+            break;
+    }
+}
+catch (Exception ex)
+{
+    Console.Error.WriteLine($"Error: {ex.Message}");
+    Environment.Exit(1);
+}
+   
 
         for (int i = 1; i < parts.Length; i += 2)
         {
@@ -107,84 +54,5 @@ static async Task HandleListCommand()
     catch (Exception ex)
     {
         Console.WriteLine($"Ошибка при выполнении команды List: {ex.Message}");
-    }
-}
-
-// <summary>
-// Обрабатывает команду Get: формирует запрос на скачивание, получает файл с сервера и сохраняет его локально
-// </summary>
-static async Task HandleGetCommand()
-{
-    try
-    {
-        Console.Write("Введите путь к файлу: ");
-        var filePath = Console.ReadLine();
-        Console.Write("Введите имя для сохранения файла: ");
-        var savePath = Console.ReadLine();
-
-        using TcpClient client = new TcpClient();
-        await client.ConnectAsync("localhost", 8888);
-
-        using NetworkStream stream = client.GetStream();
-        using StreamReader reader = new StreamReader(stream);
-        using StreamWriter writer = new StreamWriter(stream);
-
-        var request = $"2 {filePath}";
-        await writer.WriteLineAsync(request);
-        await writer.FlushAsync();
-
-        Console.WriteLine($"Отправлен запрос: {request}");
-
-        var sizeLine = await reader.ReadLineAsync();
-        Console.WriteLine($"Получен размер файла: {sizeLine}");
-
-        if (sizeLine == null)
-        {
-            Console.WriteLine("Пустой ответ от сервера");
-            return;
-        }
-
-        if (!long.TryParse(sizeLine, out long fileSize))
-        {
-            Console.WriteLine("Некорректный формат размера файла");
-            return;
-        }
-
-        if (fileSize == -1)
-        {
-            Console.WriteLine("Файл не существует на сервере");
-            return;
-        }
-
-        Console.WriteLine($"Размер файла: {fileSize} байт");
-        Console.WriteLine("Начинается загрузка файла...");
-
-        using FileStream fileStream = File.Create(savePath);
-        var buffer = new byte[4096];
-        long totalRead = 0;
-
-        while (totalRead < fileSize)
-        {
-            var bytesToRead = (int)Math.Min(buffer.Length, fileSize - totalRead);
-            var bytesRead = await stream.ReadAsync(buffer, 0, bytesToRead);
-
-            if (bytesRead == 0)
-            {
-                Console.WriteLine("Соединение прервано до завершения загрузки");
-                break;
-            }
-
-            await fileStream.WriteAsync(buffer, 0, bytesRead);
-            totalRead += bytesRead;
-
-            var progress = (double)totalRead / fileSize * 100;
-            Console.WriteLine($"Загружено: {totalRead}/{fileSize} байт ({progress:F1}%)");
-        }
-
-        Console.WriteLine($"Файл успешно сохранен как: {savePath}");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Ошибка при выполнении команды Get: {ex.Message}");
     }
 }
