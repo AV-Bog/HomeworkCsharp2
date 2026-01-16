@@ -53,7 +53,7 @@ public sealed class MyThreadPool : IDisposable
         ArgumentNullException.ThrowIfNull(func);
 
         var task = new MyTask<TResult>(func, this);
-        EnqueueContinuationSafe(task.Execute);
+        this.EnqueueContinuationSafe(task.Execute);
         return task;
     }
 
@@ -87,6 +87,13 @@ public sealed class MyThreadPool : IDisposable
         this.taskQueue.Dispose();
     }
 
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        this.Shutdown();
+        GC.SuppressFinalize(this);
+    }
+
     internal void EnqueueContinuationSafe(Action continuation)
     {
         try
@@ -105,12 +112,5 @@ public sealed class MyThreadPool : IDisposable
         {
             task();
         }
-    }
-
-    /// <inheritdoc />
-    public void Dispose()
-    {
-        this.Shutdown();
-        GC.SuppressFinalize(this);
     }
 }
