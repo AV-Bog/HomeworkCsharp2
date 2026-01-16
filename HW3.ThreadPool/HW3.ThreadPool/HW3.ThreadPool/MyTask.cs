@@ -4,16 +4,21 @@
 
 namespace HW3.ThreadPool;
 
+/// <summary>
+/// Represents an asynchronous computation that produces a result of type <typeparamref name="TResult"/>.
+/// This class is not intended for direct instantiation by user code; use <see cref="MyThreadPool.Submit{TResult}"/> instead.
+/// </summary>
+/// <typeparam name="TResult">The type of the result produced by this task.</typeparam>
 internal sealed class MyTask<TResult> : IMyTask<TResult>
 {
-    private readonly Func<TResult> _function;
-    private readonly MyThreadPool _threadPool;
+    private readonly Func<TResult> function;
+    private readonly MyThreadPool threadPool;
+    private readonly object continuationsLock = new();
+    private readonly List<Action> continuations = [];
+    private readonly ManualResetEventSlim completionEvent = new(initialState: false);
 
-    private TResult? _result;
-    private Exception? _exception;
-    private readonly ManualResetEventSlim _completionEvent = new(false);
-    private readonly object _continuationsLock = new();
-    private readonly List<Action> _continuations = [];
+    private TResult? result;
+    private Exception? exception;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MyTask{TResult}"/> class.
@@ -24,71 +29,26 @@ internal sealed class MyTask<TResult> : IMyTask<TResult>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="function"/> or <paramref name="threadPool"/> is null.</exception>
     internal MyTask(Func<TResult> function, MyThreadPool threadPool)
     {
-        this._function = function ?? throw new ArgumentNullException(nameof(function));
-        this._threadPool = threadPool ?? throw new ArgumentNullException(nameof(threadPool));
-    }
-
-    internal void Execute()
-    {
-        try
-        {
-            this._result = this._function();
-        }
-        catch (Exception ex)
-        {
-            this._exception = ex;
-        }
-        finally
-        {
-            List<Action>? toRun = null;
-            lock (this._continuationsLock)
-            {
-                this._completionEvent.Set();
-                if (this._continuations.Count > 0)
-                {
-                    toRun = new List<Action>(this._continuations);
-                    this._continuations.Clear();
-                }
-            }
-
-            if (toRun != null)
-            {
-                foreach (var action in toRun)
-                {
-                    this._threadPool.EnqueueContinuation(action);
-                }
-            }
-        }
-    }
-
-    internal void CompleteWithResult(TResult result)
-    {
-        this._result = result;
-        this._completionEvent.Set();
-    }
-
-    internal void CompleteWithException(Exception ex)
-    {
-        this._exception = ex;
-        this._completionEvent.Set();
+        this.function = function ?? throw new ArgumentNullException(nameof(function));
+        this.threadPool = threadPool ?? throw new ArgumentNullException(nameof(threadPool));
     }
 
     /// <inheritdoc />
-    public bool IsCompleted => this._completionEvent.IsSet;
+    public bool IsCompleted => this.completionEvent.IsSet;
 
     /// <inheritdoc />
     public TResult Result
     {
         get
         {
-            this._completionEvent.Wait();
+            this.completionEvent.Wait();
 
-            if (this._exception != null)
+            if (this.exception != null)
             {
-                throw new AggregateException(this._exception);
+                throw new AggregateException(this.exception);
             }
 
-            return this._result!;
+            return this.result!;
         }
     }
 
@@ -97,52 +57,83 @@ internal sealed class MyTask<TResult> : IMyTask<TResult>
     {
         ArgumentNullException.ThrowIfNull(func);
 
-        var next = new MyTask<TNewResult>(() => default!, this._threadPool);
+        var next = new MyTask<TNewResult>(() => throw new InvalidOperationException("Should not be executed directly"), this.threadPool);
 
-        lock (this._continuationsLock)
+        Action continuationAction = () =>
         {
-            if (!this._completionEvent.IsSet)
+            if (this.exception != null)
             {
-                this._continuations.Add(() =>
-                {
-                    if (this._exception != null)
-                    {
-                        next.CompleteWithException(this._exception);
-                    }
-                    else
-                    {
-                        try
-                        {
-                            var newResult = func(this._result!);
-                            next.CompleteWithResult(newResult);
-                        }
-                        catch (Exception ex)
-                        {
-                            next.CompleteWithException(ex);
-                        }
-                    }
-                });
-                return next;
-            }
-
-            if (this._exception != null)
-            {
-                next.CompleteWithException(this._exception);
+                next.CompleteWithExceptionPrivate(this.exception);
             }
             else
             {
                 try
                 {
-                    var newResult = func(this._result!);
-                    next.CompleteWithResult(newResult);
+                    var newResult = func(this.result!);
+                    next.CompleteWithResultPrivate(newResult);
                 }
                 catch (Exception ex)
                 {
-                    next.CompleteWithException(ex);
+                    next.CompleteWithExceptionPrivate(ex);
+                }
+            }
+        };
+
+        lock (this.continuationsLock)
+        {
+            if (!this.completionEvent.IsSet)
+            {
+                this.continuations.Add(continuationAction);
+                return next;
+            }
+
+            this.threadPool.EnqueueContinuationSafe(continuationAction);
+            return next;
+        }
+    }
+
+    internal void Execute()
+    {
+        try
+        {
+            this.result = this.function();
+        }
+        catch (Exception ex)
+        {
+            this.exception = ex;
+        }
+        finally
+        {
+            List<Action>? toRun = null;
+            lock (this.continuationsLock)
+            {
+                this.completionEvent.Set();
+                if (this.continuations.Count > 0)
+                {
+                    toRun = new List<Action>(this.continuations);
+                    this.continuations.Clear();
+                }
+            }
+
+            if (toRun != null)
+            {
+                foreach (var action in toRun)
+                {
+                    this.threadPool.EnqueueContinuationSafe(action);
                 }
             }
         }
+    }
 
-        return next;
+    private void CompleteWithResultPrivate(TResult value)
+    {
+        this.result = value;
+        this.completionEvent.Set();
+    }
+
+    private void CompleteWithExceptionPrivate(Exception ex)
+    {
+        this.exception = ex;
+        this.completionEvent.Set();
     }
 }

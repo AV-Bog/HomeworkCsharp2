@@ -13,45 +13,30 @@ using System.Collections.Concurrent;
 /// </summary>
 public sealed class MyThreadPool : IDisposable
 {
-    private readonly Thread[] _workerThreads;
-    private readonly BlockingCollection<Action> _taskQueue = new();
-    private bool _isShutdown = false;
-    private readonly object _shutdownLock = new();
+    private readonly Thread[] workerThreads;
+    private readonly BlockingCollection<Action> taskQueue = new();
+    private readonly object shutdownLock = new();
+
+    private bool isShutdown = false;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MyThreadPool"/> class with the specified number of worker threads.
     /// </summary>
     /// <param name="threadCount">The number of worker threads in the pool. Must be greater than zero.</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="threadCount"/> is less than or equal to zero.</exception>
-
     public MyThreadPool(int threadCount)
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(threadCount, 0);
 
-        this._workerThreads = new Thread[threadCount];
+        this.workerThreads = new Thread[threadCount];
         for (int i = 0; i < threadCount; i++)
         {
-            this._workerThreads[i] = new Thread(this.WorkerLoop)
+            this.workerThreads[i] = new Thread(this.WorkerLoop)
             {
                 IsBackground = true,
                 Name = $"MyThreadPool.Worker-{i}",
             };
-            this._workerThreads[i].Start();
-        }
-    }
-
-    private void WorkerLoop()
-    {
-        foreach (var task in this._taskQueue.GetConsumingEnumerable())
-        {
-            try
-            {
-                task();
-            }
-            catch
-            {
-                // Ignore exceptions
-            }
+            this.workerThreads[i].Start();
         }
     }
 
@@ -68,26 +53,8 @@ public sealed class MyThreadPool : IDisposable
         ArgumentNullException.ThrowIfNull(func);
 
         var task = new MyTask<TResult>(func, this);
-        try
-        {
-            _taskQueue.Add(task.Execute);
-        }
-        catch (InvalidOperationException)
-        {
-            throw new InvalidOperationException("ThreadPool has been shut down.");
-        }
-
+        EnqueueContinuationSafe(task.Execute);
         return task;
-    }
-
-    /// <summary>
-    /// Enqueues a continuation action to be executed by the thread pool.
-    /// This method is intended for internal use by <see cref="MyTask{TResult}"/>.
-    /// </summary>
-    /// <param name="continuation">The action to enqueue.</param>
-    internal void EnqueueContinuation(Action continuation)
-    {
-        this._taskQueue.Add(continuation);
     }
 
     /// <summary>
@@ -100,24 +67,44 @@ public sealed class MyThreadPool : IDisposable
     /// </remarks>
     public void Shutdown()
     {
-        lock (this._shutdownLock)
+        lock (this.shutdownLock)
         {
-            if (this._isShutdown)
+            if (this.isShutdown)
             {
                 return;
             }
 
-            this._isShutdown = true;
+            this.isShutdown = true;
         }
 
-        this._taskQueue.CompleteAdding();
+        this.taskQueue.CompleteAdding();
 
-        foreach (var thread in this._workerThreads)
+        foreach (var thread in this.workerThreads)
         {
             thread.Join();
         }
 
-        this._taskQueue.Dispose();
+        this.taskQueue.Dispose();
+    }
+
+    internal void EnqueueContinuationSafe(Action continuation)
+    {
+        try
+        {
+            this.taskQueue.Add(continuation);
+        }
+        catch (InvalidOperationException)
+        {
+            throw new InvalidOperationException("Cannot enqueue continuation: ThreadPool is shutting down or disposed.");
+        }
+    }
+
+    private void WorkerLoop()
+    {
+        foreach (var task in this.taskQueue.GetConsumingEnumerable())
+        {
+            task();
+        }
     }
 
     /// <inheritdoc />
