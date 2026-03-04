@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HW3.ThreadPool", "HW3.ThreadPool\HW3.ThreadPool.csproj", "{94B8E1C6-6CE9-40E8-8467-60606637A1EE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestMTP", "TestMTP\TestMTP.csproj", "{906D8AAC-FA14-4139-81F7-E9556EFCBC26}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{94B8E1C6-6CE9-40E8-8467-60606637A1EE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{94B8E1C6-6CE9-40E8-8467-60606637A1EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{94B8E1C6-6CE9-40E8-8467-60606637A1EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{94B8E1C6-6CE9-40E8-8467-60606637A1EE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{906D8AAC-FA14-4139-81F7-E9556EFCBC26}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{906D8AAC-FA14-4139-81F7-E9556EFCBC26}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{906D8AAC-FA14-4139-81F7-E9556EFCBC26}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{906D8AAC-FA14-4139-81F7-E9556EFCBC26}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
