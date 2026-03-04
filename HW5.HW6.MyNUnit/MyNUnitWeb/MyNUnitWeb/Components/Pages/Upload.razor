@@ -1,0 +1,77 @@
+﻿@page "/upload"
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<PageTitle>Upload Assemblies</PageTitle>
+
+<h2>Upload Test Assemblies</h2>
+
+<InputFile OnChange="OnInputFileChange" multiple accept=".dll" class="mb-3" />
+
+@if (selectedFiles.Any())
+{
+    <button class="btn btn-primary" @onclick="StartTesting" disabled="@isUploading">
+        @(isUploading ? "Running..." : "Start Testing")
+    </button>
+
+    <ul class="mt-3">
+        @foreach (var file in selectedFiles)
+        {
+            <li>@file.Name (@($"{file.Size / 1024} KB"))</li>
+        }
+    </ul>
+}
+else
+{
+    <p class="text-muted"><em>Файлы не выбраны</em></p>
+}
+
+<div class="text-info mt-2">
+    Debug: selectedFiles.Count = @selectedFiles.Count
+</div>
+
+<button @onclick="() => clickCount++">Click me (@clickCount)</button>
+
+@code {
+    int clickCount = 0;
+    private List<IBrowserFile> selectedFiles = new();
+    private bool isUploading = false;
+
+    private void OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        selectedFiles = e.GetMultipleFiles()
+            .Where(f => f.Name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            .ToList(); 
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task StartTesting()
+    {
+        if (selectedFiles.Count == 0 || isUploading) return;
+
+        isUploading = true;
+        try
+        {
+            var formData = new MultipartFormDataContent();
+            foreach (var file in selectedFiles)
+            {
+                var stream = file.OpenReadStream(10 * 1024 * 1024);
+                formData.Add(new StreamContent(stream), "files", file.Name);
+            }
+
+            var response = await Http.PostAsync("/api/upload", formData);
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+                if (json?.TryGetValue("runId", out var idStr) == true && Guid.TryParse(idStr, out var id))
+                {
+                    Nav.NavigateTo($"/runs/{id}");
+                }
+            }
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+}

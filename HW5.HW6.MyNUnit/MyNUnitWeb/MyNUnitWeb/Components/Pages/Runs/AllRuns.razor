@@ -1,0 +1,47 @@
+@page "/runs"
+@using DefaultNamespace
+@inject HttpClient Http
+
+<PageTitle>All Test Runs</PageTitle>
+
+<h2>All Test Runs</h2>
+
+@if (runs == null)
+{
+    <p>Loading history...</p>
+}
+else if (runs.Count == 0)
+{
+    <p>No test runs yet.</p>
+}
+else
+{
+    <div class="list-group">
+        @foreach (var run in runs)
+        {
+            <a href="/runs/@run.Id" class="list-group-item list-group-item-action">
+                <div class="d-flex justify-content-between">
+                    <strong>@run.Timestamp.ToLocalTime().ToString("g")</strong>
+                    <span class="badge bg-secondary">@run.Assemblies.Count assemblies</span>
+                </div>
+                <div>
+                    @{
+                        var totalPassed = run.Assemblies.Sum(a => a.Result.PassedTests);
+                        var totalFailed = run.Assemblies.Sum(a => a.Result.FailedTests);
+                        var totalIgnored = run.Assemblies.Sum(a => a.Result.IgnoredTests);
+                    }
+                    ✅ @totalPassed | ❌ @totalFailed | ⏭️ @totalIgnored
+                </div>
+            </a>
+        }
+    </div>
+}
+
+@code {
+    private List<TestRunRecord>? runs;
+
+    protected override async Task OnInitializedAsync()
+    {
+        runs = (await Http.GetFromJsonAsync<TestRunRecord[]>("/api/run"))?.ToList();
+    }
+}

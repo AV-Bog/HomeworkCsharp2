@@ -1,0 +1,111 @@
+@page "/runs/{Id:guid}"
+@inject HttpClient Http
+@using DefaultNamespace
+
+<PageTitle>Test Run Details</PageTitle>
+
+@if (run == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <h2>Test Run @run.Id</h2>
+    <p><em>Started:</em> @run.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</p>
+
+    @foreach (var assemblyRun in run.Assemblies)
+    {
+        var result = assemblyRun.Result;
+        <div class="card mt-4">
+            <div class="card-header bg-primary text-white">
+                <strong>.Assembly:</strong> @GetFileName(assemblyRun.Path)
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <span class="badge bg-success">Passed: @result.PassedTests</span>
+                    <span class="badge bg-danger">Failed: @result.FailedTests</span>
+                    <span class="badge bg-warning text-dark">Ignored: @result.IgnoredTests</span>
+                    <span class="badge bg-secondary">Total: @result.TotalTests</span>
+                </div>
+
+                @if (result.Classes.Count == 0)
+                {
+                    <p><em>No test classes found.</em></p>
+                }
+                else
+                {
+                    @foreach (var testClass in result.Classes)
+                    {
+                        <h5 class="mt-3">@testClass.ClassName</h5>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Test Method</th>
+                                    <th>Status</th>
+                                    <th>Duration (ms)</th>
+                                    @if (testClass.Tests.Any(t => t.Status == TestStatus.Ignored || t.Status == TestStatus.Failed))
+                                    {
+                                        <th>Details</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var test in testClass.Tests)
+                                {
+                                    <tr>
+                                        <td>@test.MethodName</td>
+                                        <td>
+                                            @switch (test.Status)
+                                            {
+                                                case TestStatus.Passed:
+                                                    <span class="text-success">✅ Passed</span>
+                                                    break;
+                                                case TestStatus.Failed:
+                                                    <span class="text-danger">❌ Failed</span>
+                                                    break;
+                                                case TestStatus.Ignored:
+                                                    <span class="text-warning">⏭️ Ignored</span>
+                                                    break;
+                                            }
+                                        </td>
+                                        <td>@test.DurationMs</td>
+                                        @if (test.Status == TestStatus.Ignored || test.Status == TestStatus.Failed)
+                                        {
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(test.Message))
+                                                {
+                                                    <small class="text-muted">@test.Message</small>
+                                                }
+                                                else
+                                                {
+                                                    <small class="text-muted">No details</small>
+                                                }
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                }
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private TestRunRecord? run;
+
+    protected override async Task OnInitializedAsync()
+    {
+        run = await Http.GetFromJsonAsync<TestRunRecord>($"api/run/{Id}");
+    }
+
+    private static string GetFileName(string fullPath)
+    {
+        if (string.IsNullOrEmpty(fullPath)) return string.Empty;
+        var parts = fullPath.Split(new char[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length > 0 ? parts[^1] : fullPath;
+    }
+}
